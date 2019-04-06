@@ -34,7 +34,7 @@ def set_logger(name):
 
 
 args = get_args()
-set_logger("subject_recognition")
+set_logger("%s_%d"%(args.rnn_type, args.n_layers))
 torch.manual_seed(args.seed)
 if not args.cuda:
     args.gpu = -1
@@ -72,7 +72,7 @@ if args.word_vectors:
     if os.path.isfile(args.vector_cache):
         pretrained = torch.load(args.vector_cache)
     else:
-        pretrained = load_pretrained_vectors(args.word_vectors, binary=False,
+        pretrained = load_pretrained_vectors(args.word_vectors, word_vocab, binary=False,
                                              normalize=args.word_normalize)
         torch.save(pretrained, args.vector_cache)
 
@@ -88,12 +88,10 @@ criterion = nn.NLLLoss() # negative log likelyhood loss function
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 # train the model
-iterations = 0
 best_dev_acc = 0
 best_dev_F = 0
-num_iters_in_epoch = train_loader.batch_num
-patience = args.patience * num_iters_in_epoch
-iters_not_improved = 0
+patience = args.patience
+epoch_not_improved = 0
 early_stop = False
 train_loss = 0
 snapshot_path = "subject_recognition.pth"
@@ -109,7 +107,6 @@ for epoch in range(1, args.epochs+1):
         # seq: (batch_size, len)
         # seq_len: (batch_size)
         # label: (batch_size, len)
-        iterations += 1
         seq, seq_len, label = batch
         model.train()
         optimizer.zero_grad()
@@ -126,42 +123,42 @@ for epoch in range(1, args.epochs+1):
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_gradient)
         optimizer.step()
 
-        if iterations % args.save_every == 0:
-            torch.save(model, snapshot_path)
+    if epoch % args.save_every == 0:
+        torch.save(model, snapshot_path)
 
-        if iterations % args.dev_every == 0:
-            valid_loss = 0
-            model.eval()
-            n_dev_correct = 0
-            gold_list = []
-            pred_list = []
-            for valid_batch_idx, valid_batch in enumerate(valid_loader.next_batch()):
-                seq, seq_len, valid_label = batch
-                answer = model.forward(seq, seq_len)
-                n_dev_correct += ((torch.max(answer, 1)[1].view(valid_label.size()).data == \
-                                   valid_label.data).sum(dim=1) == valid_label.size()[1]).sum()
-                valid_loss += criterion(answer, valid_label.view(-1, 1)[:, 0]).data.item()
-                index_tag = np.transpose(torch.max(answer, 1)[1].view(valid_label.size()).cpu().data.numpy())
-                gold_list.append(np.transpose(valid_label.cpu().data.numpy()))
-                pred_list.append(index_tag)
-            P, R, F = evaluation(gold_list, pred_list)
-            dev_acc = 100. * n_dev_correct / (valid_loader.batch_num * valid_loader.batch_size)
-            logging.info("-----------------------------")
-            logging.info("iterations %d" % (iterations))
-            logging.info("train loss is %f" % train_loss)
-            logging.info("valid loss is %f" % valid_loss)
-            logging.info("valid acc is %f" % dev_acc)
-            logging.info("train acc is %f" % train_acc)
-            logging.info("P is %f" % P)
-            logging.info("R is %f" % R)
-            logging.info("F is %f" % F)
-            train_loss = 0
-            if F > best_dev_F:
-                best_dev_F = F
-                iters_not_improved = 0
-                torch.save(model, best_snapshot_path)
-            else:
-                iters_not_improved += 1
-                if iters_not_improved > patience:
-                    early_stop = True
-                    break
+    if epoch % args.dev_every == 0:
+        valid_loss = 0
+        model.eval()
+        n_dev_correct = 0
+        gold_list = []
+        pred_list = []
+        for valid_batch_idx, valid_batch in enumerate(valid_loader.next_batch()):
+            seq, seq_len, valid_label = valid_batch
+            answer = model.forward(seq, seq_len)
+            n_dev_correct += ((torch.max(answer, 1)[1].view(valid_label.size()).data == \
+                               valid_label.data).sum(dim=1) == valid_label.size()[1]).sum()
+            valid_loss += criterion(answer, valid_label.view(-1, 1)[:, 0]).data.item()
+            index_tag = np.transpose(torch.max(answer, 1)[1].view(valid_label.size()).cpu().data.numpy())
+            gold_list.append(np.transpose(valid_label.cpu().data.numpy()))
+            pred_list.append(index_tag)
+        P, R, F = evaluation(gold_list, pred_list)
+        dev_acc = 100. * n_dev_correct / (valid_loader.batch_num * valid_loader.batch_size)
+        logging.info("-----------------------------")
+        logging.info("epochs %d" % (epoch))
+        logging.info("train loss is %f" % train_loss / (train_loader.batch_num * train_loader.batch_size))
+        logging.info("valid loss is %f" % valid_loss / (valid_loader.batch_num * valid_loader.batch_size))
+        logging.info("valid acc is %f" % dev_acc)
+        logging.info("train acc is %f" % train_acc)
+        logging.info("P is %f" % P)
+        logging.info("R is %f" % R)
+        logging.info("F is %f" % F)
+        train_loss = 0
+        if F > best_dev_F:
+            best_dev_F = F
+            iters_not_improved = 0
+            torch.save(model, best_snapshot_path)
+        else:
+            iters_not_improved += args.dev_every
+            if iters_not_improved > patience:
+                early_stop = True
+                break
