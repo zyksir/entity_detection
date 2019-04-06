@@ -5,8 +5,8 @@ from builtins import range
 import numpy as np
 import torch
 import os
-import psycopg2
-import psycopg2.extras
+# import psycopg2
+# import psycopg2.extras
 from Levenshtein import distance
 from functools import lru_cache
 

@@ -6,7 +6,7 @@ def get_args():
     parser.add_argument('--no_cuda', action='store_false', help='do not use CUDA', dest='cuda')
     parser.add_argument('--gpu', type=int, default=0, help='GPU device to use')  # use -1 for CPU
     parser.add_argument('--seed', type=int, default=1111, help='random seed for reproducing results')
-    parser.add_argument('--train_file', type=str, default='../../data/subject_recognition/train.pt')
+    parser.add_argument('--train_file', type=str, default='../data/train.pt')
     parser.add_argument('--valid_file', type=str, default='../../data/subject_recognition/dev.pt')
     parser.add_argument('--test_file', type=str, default='../../data/subject_recognition/test.pt')
     parser.add_argument('--vocab_file', type=str, default='../../data/vocab/word_vocab.pt')
@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument('--dropout_prob', type=float, default=0.5)
 
     parser.add_argument('--word_vectors', type=str, default='../../data/vocab/glove.42B.300d.txt')
-    parser.add_argument('--vector_cache', type=str, default=os.path.join(os.getcwd(), './input_vectors.pt'))
+    parser.add_argument('--vector_cache', type=str, default=os.path.join(os.getcwd(), '../data/input_vectors.pt'))
     parser.add_argument('--word_normalize', action='store_true')
 
     parser.add_argument('--epochs', type=int, default=100)
