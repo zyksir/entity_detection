@@ -57,7 +57,7 @@ defusedxml==0.5.0
 dill==0.2.8.2
 distributed==1.18.1
 dj-database-url==0.5.0
-Django==2.1.2
+Django==2.2.13
 django-allauth==0.38.0
 django-anymail==4.2
 django-contrib-comments==1.9.0
